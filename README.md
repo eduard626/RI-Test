@@ -13,11 +13,14 @@ The first problem is "how to detect the target classes?". We considered two ways
 
 For 1), one could find and segment "blobs", identify or classify them based on colour, appearance, geometry, etc. even extract and match hand-crafted sparse features (sift, etc). In fact, one approach that we considered and briefly tested was zero-shot classification of such blobs via [CLIP](https://github.com/openai/CLIP) (but it did not quite work for the target ontology).
 
-For 2), one could train(or fine-tune) an object detector model for the classes of interest; there are popular ones like yolo, detr(and follow-ups), fasterrcnn, etc. The latter approach would be preferable as learning-based methods have shown good performance to traditional CV challenges, e.g., lack of texture, colour/intensity changes, occlusions, view-point changes, etc.
+For 2), one could train(or fine-tune) an object detector model for the classes of interest; there are popular ones like [yolo](https://github.com/Deci-AI/super-gradients/blob/master/YOLONAS.md), [DETR](https://github.com/lyuwenyu/RT-DETR) (and follow-ups), [fasterrcnn](https://docs.pytorch.org/tutorials/intermediate/torchvision_tutorial.html), etc. The latter approach would be preferable as learning-based methods have shown good performance to traditional CV challenges, e.g., lack of texture, colour/intensity changes, occlusions, view-point changes, etc.
 
 Note, however, that learning-based approaches, even for few-shot learning, would require a suitable labelled dataset for the target domain. Whereas We could extract and label frames from the labelled video for a PoC demo, this is not my preferred approach; as it would be like cheating -- training and testing on the same data --.
 
-Based on the limited data and limited time, we explored zero-shot open-set detection via [Grounding DINO](https://github.com/IDEA-Research/GroundingDINO). Here, we light tuning to allow the model to detect the target classes, and then implement a simple object tracker to associate frame-to-frame detections. Additionally, after initial inspection of the video sequence, we show how motion/saliency priors can help to mitigate false positive or incorrect detections.
+Based on the limited data and limited time, we explored zero-shot open-set detection via [Grounding DINO](https://github.com/IDEA-Research/GroundingDINO). Here, we light tuning to allow the model to detect the target classes, and then implement a simple object tracker to associate frame-to-frame detections. Additionally, after initial inspection of the video sequence, we show how motion/saliency priors can help to mitigate false positive or incorrect detections. We implement a basic multi object tracker (`CentroidTracker`) as a quick way to associate detections across frames. 
+
+In addition to lack of time/data, the motivation for the combination of off-the-shelf (detector) + from-scratch (tracker) implementation stems from code availability/suitability. Whereas plenty of implementation for detectors and trackers exist, they often are lacking license or had one not suitable for commercial purposes. In some other cases, documentation is not clear, or I did try them but did not work.
+
 
 ## Methods
 
@@ -59,7 +62,7 @@ One limitation of the current tracker is the pure geometrical nature (centroid).
 
 A more complex matching/association algorithm would involved re-identification so that we can, for instance, track objects even of they go out of view.
 
-If more data becomes available, we could consider dropping this tracker all together and train a model to do the tracking. Potentially starting from a somewhat stablished algorithm like BytTrack, SAM2, etc. A method that is able to propagate/associate detections through video.
+If more data becomes available, we could consider dropping this tracker all together and train a model to do the tracking. Potentially starting from a somewhat popular algorithm like DeepSORT, BytTrack, SAM2, etc. A method that is able to propagate/associate detections through video. Even something "simple" (but requiring also tuning) like [OpenCV tracking methods](https://docs.opencv.org/4.6.0/dc/d6b/group__tracking__legacy.html).
 
 
 ### Object interactions and state changes
@@ -93,5 +96,7 @@ Due to lack of time, we resort to a development environment, i.e., big docker im
     ```
     bash run.sh
     ```
+## REFERENCES
+Grounding DINO: [Paper](https://arxiv.org/abs/2303.05499), [code](https://github.com/IDEA-Research/GroundingDINO)
 
-
+Grounded SAM2: [code](https://github.com/IDEA-Research/Grounded-SAM-2)
