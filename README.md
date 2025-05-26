@@ -1,79 +1,76 @@
-<p align="center">
-<img src=./RI-SeniorAITest-Github.png>
-</p>
+## Introduction
 
-# Test Introduction
-
-You have been provided with the video "AICandidateTest-FINAL.mp4," which offers a top-down view of experimental work within a fume hood. The objective of this test is to evaluate your proficiency in computer vision, technical acumen, and problem-solving capabilities. You are free to tackle the challenges using your preferred programming language and any applicable tools or techniques. Treat this test as if you were undertaking a regular day of work.
-
-# Task
-
-The test encompasses the following objectives:
-
+The aim of the task is to, given a video sample, develop a solution that is able to: 
 * Identify different object types in the scene (petri dishes, bottles, hands).
 * Determine interactions between objects (e.g., hand touches dish, dish is filled).
 * Track the count of filled dishes as the scene unfolds.
 * Identify any additional vision-based insights in the scene that you find compelling.
 
-In order to assess your ability but not consume too much of your time, please be thorough in researching methods before attempting any implementation. Prioritise the tasks above from top to bottom in terms of implementation, ensuring only to add your own insights after completing the first bullet points if you still have time.
+We focus on the first 2 items and then discuss future work to develop an improved and full solution for the problem.
 
-The task should take you a minimum of 3 hours, of which we personally recommend spending around 45 minutes planning and preparing a report of your planned approaches, and the remaining time on showing off your coding prowess.
+We approached the problem following the tracking-by-detection paradigm, where objects are detected frame by frame (independently) and then detections are associated across frames.
+The first problem is "how to detect the target classes?". We considered two ways: 1) Traditional CV and 2) Learning based (AI/ML). 
 
-Primarily we work in Python or C++ for our AI services, so demonstrations of these skills would be ideal. If you have skills to show from other languages (alternative approaches) however, please include them in your report as we are interested in seeing your full range of skills.
+For 1), one could find and segment "blobs", identify or classify them based on colour, appearance, geometry, etc. even extract and match hand-crafted sparse features (sift, etc). In fact, one approach that we considered and briefly tested was zero-shot classification of such blobs via [CLIP](https://github.com/openai/CLIP) (but it did not quite work for the target ontology).
 
-# Setup & Environment
+For 2), one could train(or fine-tune) an object detector model for the classes of interest; there are popular ones like yolo, detr(and follow-ups), fasterrcnn, etc. The latter approach would be preferable as learning-based methods have shown good performance to traditional CV challenges, e.g., lack of texture, colour/intensity changes, occlusions, view-point changes, etc.
 
-To access the video, kindly follow this link: [Video](https://reach-industries-candidate-tests.s3.eu-west-2.amazonaws.com/AICandidateTest-FINAL.mp4). In certain browsers, you might need to right-click on the link and choose "Save Link As" to initiate the download.
+Note, however, that learning-based approaches, even for few-shot learning, would require a suitable labelled dataset for the target domain. Whereas We could extract and label frames from the labelled video for a PoC demo, this is not my preferred approach; as it would be like cheating -- training and testing on the same data --.
 
-# Deliverables & How to submit
+Based on the limited data and limited time, we explored zero-shot open-set detection via [Grounding DINO](https://github.com/IDEA-Research/GroundingDINO). Here, we light tuning to allow the model to detect the target classes, and then implement a simple object tracker to associate frame-to-frame detections. Additionally, after initial inspection of the video sequence, we show how motion/saliency priors can help to mitigate false positive or incorrect detections.
 
-For the submission of this test, please fork this git repository. We would prefer a submission with a Dockerfile for building a docker image which can run your code on a standard Linux environment with docker installed (nvidia-docker will also be available when executing your code should you wish to use GPU enhancements), we will also accept code files as long as you provide clear instructions on execution and must require little to no editing from our side. You should include all necessary code files and model weights (if necessary due to filesize, upload to an external location and include a download in your Dockerfile) and a readme explaining how to execute your code in your submission. In an ideal world we will be able to pull your repository, build the docker and execute your code. Occasionally due to things out of our control this may not be the case, in this situation we may contact you to discuss your approach instead.
+## Methods
 
-You should also include a report of your research into the methodologies you would take given more time (for instance assume this were a 2-3 week project) in whichever format you prefer (assuming it can be opened without specialised software). Please put this at the root of your repository with an obvious name. Your report should cover, possible techinques, pros/cons of each technique, cost of implementation and any potential issues the method could face when running in production. Please ensure to cite any references (and note that as an engineer stack overflow is an acceptable resource). This can be as simple as a raw text document as long as your thought processes are clear.
+### Detection
+As introduced above, we focus on zero-shot detection with Grounding DINO. Grounding DINO extends a closed-set object detection model with a text encoder, enabling open-set object detection. 
+![](./images//gdino_diagram.png)
+In addition to the input image, the pre-trained model exposes 3 important parameters:
+1. Input text (i.e., prompt): List of candidate labels to be detected on each image.
+2. Box threshold: Score threshold to keep object detection predictions based on confidence score.
+3. Text threshold: Score threshold to keep text detection predictions,
 
-**IMPORTANT: PLEASE DO NOT INCLUDE THE ORIGINAL VIDEO IN YOUR SUBMISSION, PROVIDE INSTRUCTIONS AS TO WHERE IT SHOULD BE PLACED IN YOUR SETUP** 
+We use these parameters to tune the zero-shot detection performance of the model. The image below shows the model prediction with the following text input: `orange hand.petri dish.bottle.blue lid.heater.`
+![](./images/gdino_predicted.jpg)
 
-# Evaluation Criteria
+To remove some bad or irrelevant predictions, we add a constraint such that detections are only valid if they are in salient/foreground regions. We use a simple background subtraction algorithm to find such salient or relevant regions in the sequence. The clip below shows an example of such saliency/foreground masks.
+![](./images/fg.gif)
 
-We have two key aims in this technical test. The first is of course to see your coding ability and the second your problem solving/research skills.
+### Tracking
+We perform object detection for each frame and iteratively update tracked objects via a "simple" centroid tracker (`CentroidTracker`). The object tracker uses the bounding box and class information to associate detections over time. A simple `ObjectTrack` class allows to store key information for each object. The main parameters for tracking are: 1) The max number of frames after which an object is considered lost, 2) The distance (pixels) to consider an object as the same from one frame to the other and, 3) A smoothing factor to update object locations. During experiments, we noted a jittery behaviour in the detector; therefore a Non Maximum Suppression (NMS) step is performed internally in the tracker. Future work includes propagating scores or confidences from the detector to the tracker. 
 
-## Coding ability
+The clip below shows a short example of object tracking for the video sample
+![](./images/tracking.gif)
+## Results
+Previous section showed intermediate results for detection and tracking. The full video with detections/tracks can be found [here](https://drive.google.com/file/d/1wwo_jimO8o9Trq_WyIroI4PW6XUm6LVp/view?usp=drive_link)
 
-We will assess your code on metrics such as:
+## Future work and limitations
 
-* Code clarity (is the code easy to follow)
-* Code structure (is the code easy to adapt/port/add to/maintain)
-* General practices
-* Success at completing task (we are not looking for perfection as you only have a few hours)
+### Detector
+There are many limitations to the current approach. Many of them related to somewhat overfitting the parameters to the sample sequence.
+For instance, detecting the hands has been encoded as "orange hand" to improve the zero-shot performance of the detector. Earlier experiments with "hand" did not work as well depending on the hand trajectory, pose or location in the frame.
 
-## Problem Solving/Research
+Another interesting limitation is the "prompting" or tuning of the model parameters. Here, we resorted to a relaxation (i.e., lowering threshold) as to allow more detections. The trade-off is false positives (e.g., object misclassification) and false negatives (e.g., object not detected). One solution for the former was the incorporation of a richer text input and the implementation of NMS.
 
-We will assess your critical thinking skills on metrics such as:
+Some classes in the target ontology might be further away (conceptually) from the _standard_ classes used originally to train VLM or object detection models; thus, making it challenging to perform zero-shot inference. More data/time would allow to perhaps produce a dataset and train/fine-tune a more reliable detector. We could even consider an action detection/recognition model, particularly for reliable object/hand interactions.
 
-* Familiarity with common libraries/frameworks
-* Knowledge of standard legacy/modern computer vision methods
-* End-to-end planning of solving a CV problem
-* Out of the box thinking
+### Tracker
 
-# Troubleshooting & Support
-Test@Reach.Industries
+One limitation of the current tracker is the pure geometrical nature (centroid). Future work could include a more complex matching/association step, perhaps using appearance/geometrical features. Additionally, there is no "prediction" step, which would allow to project the object position into a future frame and enhance data association.
 
-# Terms & Conditions for Interview Tests
+A more complex matching/association algorithm would involved re-identification so that we can, for instance, track objects even of they go out of view.
 
-## 1. Purpose of the Test
-This test is designed to evaluate the technical prowess, problem-solving skills, and overall knowledge of the applicant. The test tasks and questions reflect challenges and scenarios the company has already addressed internally. Our goal is to gauge your approach and compare it with solutions we have already devised.
+If more data becomes available, we could consider dropping this tracker all together and train a model to do the tracking. Potentially starting from a somewhat stablished algorithm like BytTrack, SAM2, etc. A method that is able to propagate/associate detections through video.
 
-## 2. Use of Test Results
-- We emphasize that the tasks presented in the tests have already been achieved by our internal team to a high standard.
-- The solutions provided by candidates will purely be for evaluation purposes and will not be used in any of our products or services.
-- Any resemblance between our products and a test submission is purely coincidental. We have no intention or motive to replicate your solution in our offerings.
-- We will not store or retain your test results post-evaluation.
 
-## 3. Feedback and Next Steps
-Feedback may or may not be provided post-test based on company discretion. Candidates are encouraged to engage in the review meeting for a detailed understanding of their performance.
+### Object interactions and state changes
 
-## 4. Modifications & Updates
-Reach Industries reserves the right to modify these terms and conditions without prior notice. It's advised to review these T&Cs before proceeding with the test.
+To a good extend we can rely on the tracker to account for object interactions or state changes (filled/empty,etc.). One idea would be to add some specific Object class to e.g., container-like objects which can transition through states, and that have additional properties like volumes, level, material, etc.
 
-## 5. Consent
-By participating in this test, candidates agree to these terms and conditions.
+We could do "simple" appearance based comparisons to detect, e.g., an empty vs filled container, but a representation that is able to track state changes/transitions (empty->grabbed->pouring->filled) would work best.
+
+Similarly, hand-object interactions could be detected purely based on proximity and time. But, as mentioned above, perhaps an action recognition model would solve the problem more reliably.
+
+
+## Setup & Run
+
+## 
