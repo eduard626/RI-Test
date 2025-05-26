@@ -51,7 +51,7 @@ For instance, detecting the hands has been encoded as "orange hand" to improve t
 
 Another interesting limitation is the "prompting" or tuning of the model parameters. Here, we resorted to a relaxation (i.e., lowering threshold) as to allow more detections. The trade-off is false positives (e.g., object misclassification) and false negatives (e.g., object not detected). One solution for the former was the incorporation of a richer text input and the implementation of NMS.
 
-Some classes in the target ontology might be further away (conceptually) from the _standard_ classes used originally to train VLM or object detection models; thus, making it challenging to perform zero-shot inference. More data/time would allow to perhaps produce a dataset and train/fine-tune a more reliable detector. We could even consider an action detection/recognition model, particularly for reliable object/hand interactions.
+Some classes in the target ontology might be further away (conceptually) from the _standard_ classes used originally to train VLM or object detection models; thus, making it challenging to perform zero-shot inference. More data/time would allow to perhaps produce a dataset and train/fine-tune a more reliable detector or the VLM used here (e.g.[Open GroundingDINO](https://github.com/longzw1997/Open-GroundingDino)). We could even consider an action detection/recognition model, particularly for reliable object/hand interactions.
 
 ### Tracker
 
@@ -70,15 +70,28 @@ We could do "simple" appearance based comparisons to detect, e.g., an empty vs f
 
 Similarly, hand-object interactions could be detected purely based on proximity and time. But, as mentioned above, perhaps an action recognition model would solve the problem more reliably.
 
+Additional future work involves extracting the data in a sensible way, e.g., total object counts, interactions, etc,
+
 
 ## Setup & Run
+Due to lack of time, we resort to a development environment, i.e., big docker image with pytorch, etc. ~14GB
 1. Build docker
-```
-bash build.sh
-```
+    ```
+    bash build.sh
+    ```
 2. Place the video in the root of this repo so that it can be copied/processes in the container
 
 3. Run docker (uses [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
-```
-docker run --rm --runtime=nvidia --gpus all gdino_detector
-``` 
+    Note: We mount/share the `/tmp` in the container. The resulting images/video will be store there in `/tmp/test`
+    ```
+    docker run -it --rm --runtime=nvidia --gpus all -v /tmp:/tmp gdino_detector bash
+    ``` 
+4. Run the script to start processing
+    Processing the full sequence will take a while, but you can inspect some images as the script goes.
+    Also note that I developed with an rtx 3080, you need ~2.5 GB of GPU memory to run inference with this version of GroundingDINO
+
+    ```
+    bash run.sh
+    ```
+
+

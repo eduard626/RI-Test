@@ -1,9 +1,12 @@
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu24.04
 
 
 ARG CUDA_HOME=/usr/local/cuda-12.6
 RUN export CUDA_HOME=${CUDA_HOME} 
+
 ENV CUDA_HOME=${CUDA_HOME}
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
 # non GUI debian 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -14,16 +17,27 @@ RUN apt-get update && \
     git \
     wget \
     curl \
-    python-is-python3 \
     python3 \
+    python3-venv \
     python3-pip \
-    ffmpeg 
+    python3-dev \
+    python-is-python3 \
+    libgl1-mesa-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6
+
+# Create and activate a virtual environment
+ENV VENV_PATH=/opt/venv
+RUN python3 -m venv $VENV_PATH
+ENV PATH="$VENV_PATH/bin:$PATH"
 
 RUN python -m pip install --upgrade pip
 
 # opencv and some tools
 # we'll use Grounding DINO from GROUNDED-SAM2, so we replicate here
-RUN pip install opencv-python==4.10.0.82 \
+RUN python -m pip install opencv-python==4.10.0.82 \
     "setuptools>=62.3.0,<75.9"\
     wheel \
     numpy==1.26.4 \
@@ -36,7 +50,7 @@ RUN pip install opencv-python==4.10.0.82 \
     timm
 
 # torch and stuff
-RUN pip install --no-cache-dir \
+RUN python -m pip install --no-cache-dir \
     torch==2.7\
     torchvision==0.22.0\
     torchaudio
@@ -51,7 +65,7 @@ RUN cd gdino_checkpoints && \
     bash download_ckpts.sh
 
 # install
-RUN pip install --no-build-isolation -e grounding_dino
+RUN python -m pip install --no-build-isolation -e grounding_dino
 
 # copy the scripts to the workdir
 COPY ./detection.py .
@@ -62,7 +76,7 @@ COPY ./utils.py .
 # copy the videos to the workdir
 COPY ./*.mp4 ./
 
-# a temp directory for the output
-RUN mkdir -p /Grounded-SAM-2/RI_OUTPUT
-# set the entrypoint with the deafault video
-ENTRYPOINT ["python", "detection.py", "--video", "AICandidateTest-FINAL.mp4", "--output", "RI_OUTPUT", "--visualize"]
+# copy the script
+COPY ./run.sh .
+RUN chmod +x run.sh
+
