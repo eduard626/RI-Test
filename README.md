@@ -72,5 +72,13 @@ Similarly, hand-object interactions could be detected purely based on proximity 
 
 
 ## Setup & Run
+1. Build docker
+```
+bash build.sh
+```
+2. Place the video in the root of this repo so that it can be copied/processes in the container
 
-## 
+3. Run docker (uses [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
+```
+docker run --rm --runtime=nvidia --gpus all gdino_detector
+``` 
